@@ -3,6 +3,10 @@
 Un tableau de bord météo en temps réel construit avec Node.js, WebSocket et Chart.js.  
 Les données sont lues depuis un fichier CSV et envoyées au navigateur toutes les 3 secondes.
 
+
+https://github.com/user-attachments/assets/ac55efe8-2b0a-4163-af80-b405722ba43e
+
+
 ---
 
 ## Aperçu
