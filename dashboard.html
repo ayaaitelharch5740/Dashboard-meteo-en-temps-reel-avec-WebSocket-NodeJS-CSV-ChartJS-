@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Climatique</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f0f4f8;
+      color: #2d3748;
+      padding: 24px;
+    }
+
+    header {
+      margin-bottom: 24px;
+    }
+
+    header h1 {
+      font-size: 22px;
+      font-weight: 600;
+      color: #1a202c;
+    }
+
+    header p {
+      font-size: 13px;
+      color: #718096;
+      margin-top: 4px;
+    }
+
+    .layout {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+
+    .panneau-gauche { flex: 1; min-width: 300px; }
+    .panneau-droit  { flex: 2; min-width: 380px; }
+
+    .carte {
+      background: #ffffff;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+
+    .carte-titre {
+      font-size: 13px;
+      font-weight: 600;
+      color: #4a5568;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+
+    thead th {
+      background: #f7fafc;
+      color: #718096;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    tbody tr { border-bottom: 1px solid #f7fafc; transition: background 0.15s; }
+    tbody tr:hover { background: #f7fafc; }
+    tbody td { padding: 10px 12px; font-size: 14px; }
+
+    .badge-mois {
+      display: inline-block;
+      background: #ebf4ff;
+      color: #2b6cb0;
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .temp-max { color: #e53e3e; font-weight: 600; }
+    .temp-min { color: #3182ce; }
+
+    .graphique-wrapper { height: 260px; position: relative; }
+
+    #indicateur {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #718096;
+      margin-top: 16px;
+    }
+
+    .point-statut {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #a0aec0;
+      flex-shrink: 0;
+    }
+
+    .point-statut.connecte { background: #48bb78; animation: pulse 2s infinite; }
+    .point-statut.erreur   { background: #fc8181; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Dashboard Climatique</h1>
+    <p>Données météorologiques en temps réel</p>
+  </header>
+
+  <div class="layout">
+    <div class="panneau-gauche">
+      <div class="carte">
+        <div class="carte-titre">Relevés mensuels</div>
+        <table id="tableau">
+          <thead>
+            <tr>
+              <th>Mois</th>
+              <th>Max / Min</th>
+              <th>Jours de pluie</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div id="indicateur">
+        <span class="point-statut" id="point"></span>
+        <span id="message-statut">Connexion en cours…</span>
+      </div>
+    </div>
+
+    <div class="panneau-droit">
+      <div class="carte">
+        <div class="carte-titre">Températures (°C)</div>
+        <div class="graphique-wrapper"><canvas id="graphTemp"></canvas></div>
+      </div>
+      <div class="carte">
+        <div class="carte-titre">Jours de pluie par mois</div>
+        <div class="graphique-wrapper"><canvas id="graphPluie"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+  <script>
+    const mois = [], tmax = [], tmin = [], pluie = [];
+
+    const graphTemp = new Chart(document.getElementById("graphTemp").getContext("2d"), {
+      type: "line",
+      data: {
+        labels: mois,
+        datasets: [
+          { label: "Max (°C)", data: tmax, fill: false, lineTension: 0.4, borderColor: "#e53e3e", pointBackgroundColor: "#e53e3e", pointRadius: 4 },
+          { label: "Min (°C)", data: tmin, fill: false, lineTension: 0.4, borderColor: "#3182ce", pointBackgroundColor: "#3182ce", pointRadius: 4 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        legend: { position: "bottom" },
+        scales: { yAxes: [{ ticks: { beginAtZero: false } }] }
+      }
+    });
+
+    const graphPluie = new Chart(document.getElementById("graphPluie").getContext("2d"), {
+      type: "bar",
+      data: {
+        labels: mois,
+        datasets: [{ label: "Jours de pluie", data: pluie, backgroundColor: "rgba(99,179,237,0.6)", borderColor: "#3182ce", borderWidth: 1.5 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        legend: { position: "bottom" },
+        scales: { yAxes: [{ ticks: { beginAtZero: true } }] }
+      }
+    });
+
+    const point = document.getElementById("point");
+    const messageStatut = document.getElementById("message-statut");
+    const protocole = location.protocol === "https:" ? "wss" : "ws";
+    const socket = new WebSocket(`${protocole}://${location.hostname}:5002`);
+
+    socket.onopen = () => {
+      point.className = "point-statut connecte";
+      messageStatut.textContent = "Connecté — réception des données…";
+    };
+
+    socket.onmessage = ({ data }) => {
+      try {
+        const enregistrement = JSON.parse(data);
+
+        mois.push(enregistrement.mois);
+        tmax.push(Number(enregistrement.tmax));
+        tmin.push(Number(enregistrement.tmin));
+        pluie.push(Number(enregistrement.pluie));
+
+        document.querySelector("#tableau tbody").insertAdjacentHTML("beforeend", `
+          <tr>
+            <td><span class="badge-mois">${enregistrement.mois}</span></td>
+            <td><span class="temp-max">${enregistrement.tmax}°</span> / <span class="temp-min">${enregistrement.tmin}°</span></td>
+            <td>${enregistrement.pluie} jours</td>
+          </tr>
+        `);
+
+        graphTemp.update();
+        graphPluie.update();
+        messageStatut.textContent = `Dernier mois reçu : ${enregistrement.mois}`;
+      } catch (e) {
+        console.error("Erreur de traitement :", e);
+      }
+    };
+
+    socket.onerror = () => {
+      point.className = "point-statut erreur";
+      messageStatut.textContent = "Erreur de connexion WebSocket.";
+    };
+
+    socket.onclose = () => {
+      point.className = "point-statut";
+      messageStatut.textContent = "Flux terminé — toutes les données reçues.";
+    };
+  </script>
+</body>
+</html>
